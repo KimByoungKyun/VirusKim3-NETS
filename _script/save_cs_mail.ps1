@@ -45,10 +45,20 @@ $maxRecv  = [datetime]::MinValue
 $isFirst  = -not (Test-Path $listPath)
 if (-not $isFirst) {
     $records = @(Import-Csv -Encoding UTF8 $listPath)
+    if ($records.Count -gt 0) {
+        $headers = @($records[0].PSObject.Properties.Name)
+        $missing = @($cols | Where-Object { $headers -notcontains $_ })
+        if ($missing.Count -gt 0) {
+            Write-Host "_저장목록.csv 헤더가 맞지 않습니다. 없는 열: $($missing -join ', ')"
+            Write-Host "현재 헤더: $($headers -join ', ')"
+            Write-Host "파일을 _저장목록.csv.bak 로 바꿔 두고 다시 실행하면 전체를 새로 만듭니다."
+            exit 1
+        }
+    }
     foreach ($r in $records) {
         $existing[$r.EntryID] = $r
-        $d = [datetime]$r.수신일시
-        if ($d -gt $maxRecv) { $maxRecv = $d }
+        $d = [datetime]::MinValue
+        if ([datetime]::TryParse([string]$r.수신일시, [ref]$d) -and $d -gt $maxRecv) { $maxRecv = $d }
     }
     Write-Host "  기존 기록 $($records.Count)건, 마지막 수신 $($maxRecv.ToString('yyyy-MM-dd HH:mm'))"
 } else {
